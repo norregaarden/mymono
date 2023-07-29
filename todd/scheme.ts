@@ -1,43 +1,5 @@
-export const conlog = console.log
-const log = conlog
-
-/*
-HANDY
-*/
-export type næ = unknown
-export type keyable = string | number | symbol
-export type dict<key extends keyable, val> = Record<key, val>
-export type arr<t> = t[]
-type TODO = any | 'todo'
-
-/*
-UTIL
-*/
-type Wee<omg> = omg extends infer wtf ? { [k in keyof wtf]: wtf[k] } : never;
-type WoW<omg> = omg extends infer wtf ? { [k in keyof wtf]: WoW<wtf[k]> } : omg;
-
-const keysof = <T extends object>(t: T) => Object.keys(t) as (keyof T)[];
-
-type TypedOmit<T, K extends keyof T> = Omit<T, K>;
-type UnionOmit<U, O extends U> = U extends U ? U extends O ? never : U : never;
-type UnionPick<U, P extends U> = U extends U ? U extends P ? U : never : never;
-
-type TypeStringMap = {
-	string: string;
-	number: number;
-	boolean: boolean;
-};
-type ValuesOf<T> = keyof T extends infer k ? k extends keyof T ?
-	T[k]
-	: never : never
-type ReverseMap<T, V extends ValuesOf<T>> = keyof T extends infer k ? k extends keyof T ?
-	T[k] extends infer v ? V extends v ? k
-	: never : never : never : never;
-
-
-
-
-
+import { TODO, næ, obj, theunilog } from "./uti"
+const log = theunilog
 
 /*
 SCHEME
@@ -47,7 +9,7 @@ export type scheme =
 	| { type: "boolean" }
 	| { type: "string" }
 	| { type: "number"; min?: number; max?: number }
-	| { type: "object"; properties: dict<string, scheme> }
+	| { type: "object"; properties: obj<string, scheme> }
 	| { type: "array"; of: scheme }
 	| { type: "union"; cases: scheme[] };
 type thatkindof<s extends scheme, k extends scheme['type']> = k extends k ? s & { type: k } : never
@@ -96,10 +58,16 @@ const exampleGenned = todd.object({
 /*
 UNPACK
 */
+export type TypeStringMap = {
+	string: string;
+	number: number;
+	boolean: boolean;
+};
+export type SNBstring = 'string' | 'number' | 'boolean'
+export type SNB = TypeStringMap[SNBstring]
+
 type UnpackComment<S extends scheme> = S extends thatkindof<S, 'comment'>
 	? `//comment/${S['yo']}/` : "nevercomment"
-type SNBstring = 'string' | 'number' | 'boolean'
-type SNB = TypeStringMap[SNBstring]
 type UnpackSNB<S extends scheme> = S extends thatkindof<S, SNBstring>
 	? TypeStringMap[S["type"]]
 	: "neverSNB";
@@ -210,7 +178,7 @@ const schemespecific_switchcaseparsers = <S extends scheme>(schema: S) =>
 	(...caseparsers: [S['type'], SchemaParser<S, næ, næ>][]) =>
 		caseparsers.reduce((
 			(acc, [_case, parser]) =>
-				_case == schema.type ? (parser  as SchemaParser<S, næ>): acc),
+				_case == schema.type ? (parser as SchemaParser<S, næ>) : acc),
 			switchcasealwaysfail() as SchemaParser<S, næ>)
 
 // const andThen = (a)=>(b)=>

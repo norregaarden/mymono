@@ -1,0 +1,13 @@
+dist
+.solid
+
+# dependencies
+/node_modules
+pnpm-lock.yaml
+
+# Temp
+gitignore
+
+# System Files
+.DS_Store
+Thumbs.db
