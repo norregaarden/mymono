@@ -176,7 +176,7 @@ type schemaparser<s> = (s: s) => parser
 
 type Parser<In, Out> =
 	(input: In) => Result<Out>
-type SchemaParser<S extends scheme = scheme, In = næ, O = næ> =
+type SchemaParser<in S extends scheme = scheme, In = næ, O = UnpackSchema<S>> =
 	(scheme: S) => Parser<In, O>
 
 
@@ -205,13 +205,13 @@ const parseBoolean = parseSNB("boolean") satisfies SchemaParser<scheme, næ, boo
 
 const alwaysfail = (errmsg = 'alwaysfail'): Parser<næ, næ> => () => resultmsgerror(errmsg)
 
-const switchcasealwaysfail = <S extends scheme, I, O>(): SchemaParser<S, I, O> => () => alwaysfail('switchcaseparseralwaysfail') as any
-const schemespecific_switchcaseparsers = (schema: scheme) =>
-	(...caseparsers: [scheme['type'], SchemaParser][]) =>
+const switchcasealwaysfail = <S extends scheme, I>(): SchemaParser<S, I> => () => alwaysfail('switchcaseparseralwaysfail') as any
+const schemespecific_switchcaseparsers = <S extends scheme>(schema: S) =>
+	(...caseparsers: [S['type'], SchemaParser<S, næ, næ>][]) =>
 		caseparsers.reduce((
 			(acc, [_case, parser]) =>
-				_case == schema.type ? parser : acc),
-			switchcasealwaysfail() as SchemaParser<scheme, næ>)
+				_case == schema.type ? (parser  as SchemaParser<S, næ>): acc),
+			switchcasealwaysfail() as SchemaParser<S, næ>)
 
 // const andThen = (a)=>(b)=>
 type ArrayType<argh> = argh extends (infer type)[] ? type : never
@@ -277,7 +277,7 @@ const parseArray = null as any;
 const parseUnion = null as any;
 
 
-const switchschematype = (s: scheme) => schemespecific_switchcaseparsers(s)
+const switchschematype = <S extends scheme>(s: S) => schemespecific_switchcaseparsers(s)
 	(
 		["boolean", parseBoolean]
 		, ["string", parseString]
