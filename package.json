@@ -1,5 +1,8 @@
 {
 	"dependencies": {
 		"solid-js": "^1.7.3"
+	},
+	"devDependencies": {
+		"prettier": "^3.0.1"
 	}
 }
