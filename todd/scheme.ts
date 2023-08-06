@@ -11,7 +11,7 @@ export type scheme =
 	| { type: "number"; min?: number; max?: number }
 	| { type: "object"; properties: obj<string, scheme> }
 	| { type: "array"; of: scheme }
-	| { type: "union"; cases: scheme[] };
+// | { type: "union"; cases: scheme[] };
 type thatkindof<s extends scheme, k extends scheme['type']> = k extends k ? s & { type: k } : never
 
 
@@ -27,8 +27,8 @@ export const todd = {
 	object: <p extends (thatkindof<scheme, 'object'>)["properties"]>(properties: p) =>
 		({ type: "object", properties }),
 	array: <of>(of: of) => ({ type: "array", of }),
-	union: <cases extends scheme[]>(...cases: cases) =>
-		({ type: "union", cases, }),
+	// union: <cases extends scheme[]>(...cases: cases) =>
+	// 	({ type: "union", cases, }),
 } satisfies {
 		[k in scheme['type']]:
 		(an: any) => thatkindof<scheme, k>
@@ -49,7 +49,7 @@ export const chavez = {
 
 const exampleGenned = todd.object({
 	nam: todd.number(), ssh: todd.string(),
-	uuh: todd.union(todd.array(todd.boolean()), todd.comment('shit'))
+	// uuh: todd.union(todd.array(todd.boolean()), todd.comment('shit'))
 })
 
 
@@ -77,11 +77,11 @@ type UnpackObject<S extends scheme> = S extends thatkindof<S, 'object'>
 type UnpackArray<S extends scheme> = S extends thatkindof<S, 'array'>
 	? UnpackSchema<S['of']>[]
 	: "neverarray";
-type UnpackUnion<S extends scheme> = S extends thatkindof<S, 'union'>
-	? S["cases"][number] extends infer C
-	? C extends scheme
-	? UnpackSchema<C>
-	: "neverunion1" : "neverunion2" : 'neverunion3'
+// type UnpackUnion<S extends scheme> = S extends thatkindof<S, 'union'>
+// 	? S["cases"][number] extends infer C
+// 	? C extends scheme
+// 	? UnpackSchema<C>
+// 	: "neverunion1" : "neverunion2" : 'neverunion3'
 
 type tryelse<a, b> =
 	a extends `never${infer _suffix}` ? b : a
@@ -97,8 +97,8 @@ type tryelsepipe<ts extends næ[]> =
 // 	| UnpackArray<S>
 // 	| UnpackSNB<S>
 type UnpackSchema<S extends scheme> = tryelsepipe<
-	[UnpackComment<S>,
-		UnpackUnion<S>
+	[UnpackComment<S>
+		//, UnpackUnion<S>
 		, UnpackObject<S>
 		, UnpackArray<S>
 		, UnpackSNB<S>
@@ -106,10 +106,16 @@ type UnpackSchema<S extends scheme> = tryelsepipe<
 
 type ExampleUnpacked = UnpackSchema<typeof exampleGenned>
 const exampleChecked: ExampleUnpacked =
-	{ nam: 42, ssh: 'lol', uuh: [true] }
+{
+	nam: 42, ssh: 'lol',
+	// uuh: [true] 
+}
 log(exampleChecked)
 const alsoexampleChecked: ExampleUnpacked =
-	{ nam: NaN, ssh: null as any, uuh: '//comment/shit/' }
+{
+	nam: NaN, ssh: null as any,
+	// uuh: '//comment/shit/' 
+}
 log(alsoexampleChecked)
 
 
@@ -145,7 +151,7 @@ type schemaparser<s> = (s: s) => parser
 type Parser<In, Out> =
 	(input: In) => Result<Out>
 type SchemaParser<in S extends scheme = scheme, In = næ, O = UnpackSchema<S>> =
-	(scheme: S) => Parser<In, O>
+	<sss extends S>(scheme: sss) => Parser<In, O>
 
 
 
@@ -172,6 +178,7 @@ const parseBoolean = parseSNB("boolean") satisfies SchemaParser<scheme, næ, boo
 // const conditionalParser = <I, A, B>(a: Parser<I, A>, b: Parser<I, B>) => (cond: boolean): Parser<I, A> | Parser<I, B> => cond ? a : b
 
 const alwaysfail = (errmsg = 'alwaysfail'): Parser<næ, næ> => () => resultmsgerror(errmsg)
+function alwaysfailfunction(errmsg = 'alwaysfail'): Parser<næ, næ> { return () => resultmsgerror(errmsg) }
 
 const switchcasealwaysfail = <S extends scheme, I>(): SchemaParser<S, I> => () => alwaysfail('switchcaseparseralwaysfail') as any
 const schemespecific_switchcaseparsers = <S extends scheme>(schema: S) =>
@@ -207,53 +214,79 @@ const parser_help = <Input, Parsers extends Parser<Input, næ>[]>(parsers: Parse
 const anyOfParser =
 	<Input, Parsers extends Parser<Input, næ>[]>(
 		...parsers: Parsers): Parsers[number] =>
-		(input) => (
-			parsers.find(p => p(input).result == 'ok')
-			?? alwaysfail('')).apply(input)
+		(input) => (parsers.find(p => p(input).result == 'ok')
+			?? (alwaysfail('') as any)).apply(input)
 
 // needs all Parsers to have same Input
 // but its fine cause Input = string | næ
-const allOfParser =
-	<Input, Parsers extends Parser<Input, næ>[]>(
-		...parsers: Parsers) =>//: Parser<Input, ReturnType<Parsers[number]>[]> =>
-		(...inputs: Input[]) => {
-			if (parsers.length != inputs.length) throw new Error('allOfParser expects parsers.length == inputs.length')
-			const help = parser_help<Input, Parsers>(parsers)(inputs)
-			if (help.foundFirstErr) {
-				const yoiamstring = 'allOfParser on ' + JSON.stringify(inputs)
-				const yoIam = resultmsgerror(yoiamstring)
-				const parentError: Tree<Result> = {
-					yoIam,
-					note: 'failed because of all of these kids',
-					children: help.listAllErr
-				}
-				return resulttreeerror(parentError)
-			}
-		}
+// const allOfParser =
+// 	<Input, Parsers extends Parser<Input, næ>[]>(
+// 		...parsers: Parsers) =>//: Parser<Input, ReturnType<Parsers[number]>[]> =>
+// 		(...inputs: Input[]) => {
+// 			if (parsers.length != inputs.length) throw new Error('allOfParser expects parsers.length == inputs.length')
+// 			const help = parser_help<Input, Parsers>(parsers)(inputs)
+// 			if (help.foundFirstErr) {
+// 				const yoiamstring = 'allOfParser on ' + JSON.stringify(inputs)
+// 				const yoIam = resultmsgerror(yoiamstring)
+// 				const parentError: Tree<Result> = {
+// 					yoIam,
+// 					note: 'failed because of all of these kids',
+// 					children: help.listAllErr
+// 				}
+// 				return resulttreeerror(parentError)
+// 			}
+// 		}
 
 
 
 /*
 yo this is text	
 */
-const todo: TODO = 'todo'
-const parseObject: SchemaParser<thatkindof<scheme, 'object'>, næ> = (s) => (i) => {
-	return resultok(todo)
+// const todo: TODO = 'todo'
+const parseObject: SchemaParser<thatkindof<scheme, 'object'>, næ> = (s) => (input) => {
+	if (input == null) return resultmsgerror('parseObject: input is null');
+	if (typeof input != 'object') return resultmsgerror('parseObject: not object');
+	// const keys = objectKeys(s.properties)
+	const parsedEntries = []
+	for (const key in s.properties) {
+		if (!(key in input)) return resultmsgerror('parseObject: key not found ' + key)
+		const ischeme = s.properties[key]
+		const iparser = switchschematype(ischeme)
+		const ival = (input as any)[key]
+		const tryParseKeyVal = iparser(ival)
+		if (tryParseKeyVal.result == 'err') return tryParseKeyVal
+		const parsedResult = [key, tryParseKeyVal.ok] as const
+		parsedEntries.push(parsedResult)
+	}
+	const parsedResult = Object.fromEntries(parsedEntries)
+	return resultok(parsedResult as any)
 };
 
-const parseArray = null as any;
-const parseUnion = null as any;
+const parseArray = null as næ as SchemaParser<thatkindof<scheme, 'array'>>;
+// const parseUnion = null as næ as SchemaParser<thatkindof<scheme, 'union'>>;
 
 
-const switchschematype = <S extends scheme>(s: S) => schemespecific_switchcaseparsers(s)
-	(
-		["boolean", parseBoolean]
-		, ["string", parseString]
-		, ["number", parseNumber]
-		// , ["object", parseObject]
-		, ["array", parseArray]
-		, ["union", parseUnion]
-	)(s)
+const switchschematype = <S extends scheme>(s: S) => {
+	switch (s.type) {
+		case "string": return parseString()
+		case "number": return parseNumber()
+		case "boolean": return parseBoolean()
+		case "object": return parseObject(s)
+		// case "comment":return parseComment
+		case "array": return parseArray(s)
+		// case "union": return parseUnion(s)
+		default: return alwaysfail(`${s.type} not implemented`)
+	}
+}
+// schemespecific_switchcaseparsers(s)
+// 	(
+// 		["boolean", parseBoolean]
+// 		, ["string", parseString]
+// 		, ["number", parseNumber]
+// 		, ["object", parseObject]
+// 		, ["array", parseArray]
+// 		, ["union", parseUnion]
+// 	)(s)
 
 /*
 	
