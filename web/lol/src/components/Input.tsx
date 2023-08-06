@@ -4,11 +4,11 @@ import {
 } from "solid-js";
 import { UnionPick } from "../../../../todd/uti"
 import { TypeStringMap } from "../../../../todd/scheme"
-import { GetSet } from "../../../../soft/ge";
+import { GetSet, GetSetUnidist } from "../../../../soft/ge";
 
 export function InputLine<
   T extends UnionPick<keyof TypeStringMap, 'string' | 'number'>>(props: {
-    type: T; signal: GetSet<TypeStringMap[typeof props.type & string]>;
+    type: T; signal: GetSetUnidist<TypeStringMap[typeof props.type & string]>;
   }) {
   // const onChangeSetter: JSX.EventHandler<HTMLInputElement, InputEvent> = (ev) =>
   // const onChangeSetter: JSX.InputEventHandlerUnion<HTMLInputElement, InputEvent> = (ev) =>
@@ -28,6 +28,36 @@ export function InputLine<
       </div>
     </div>
   );
+}
+
+type InputProps<T> = {
+  getset: GetSet<T>,
+  containerprops?: JSX.HTMLAttributes<HTMLDivElement>,
+  inputprops?: JSX.HTMLAttributes<HTMLInputElement>
+}
+
+export function InputNumber(props: InputProps<number>) {
+  const eventSetter: JSX.ChangeEventHandler<HTMLInputElement, Event> = (ev) => {
+    const maybeNumber = parseFloat(ev.target.value)
+    if (!isNaN(maybeNumber) && isFinite(maybeNumber)) {
+      props.getset.set(maybeNumber)
+    }
+  }
+  return <div>
+    <input type="number" value={props.getset.get()} onChange={eventSetter} />
+  </div>
+}
+
+export function InputString(props: InputProps<string>) {
+  const eventSetter: JSX.ChangeEventHandler<HTMLInputElement, Event> = (ev) => {
+    // const maybeNumber = parseFloat(ev.target.value)
+    // if (!isNaN(maybeNumber) && isFinite(maybeNumber)) {
+    props.getset.set(ev.target.value)
+    // }
+  }
+  return <div>
+    <input type="" value={props.getset.get()} onChange={eventSetter} />
+  </div>
 }
 
 // export function InputArea(props: {

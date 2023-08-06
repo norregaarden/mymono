@@ -32,7 +32,7 @@ export type ObjectEnt<T, k = keyof T, v = ObjectVal<T>> = k extends keyof T ? T[
 export const objectEnts = <T extends object>(t: T) => Object.entries(t) as ObjectEnt<T>[];
 // export type ObjectEntries<T, k = keyof T, v = ObjectValue<T>> = ObjectEntry<T, k, v>[]
 // export type abcObjectEntries<T, k extends keyof T, v extends ObjectValue<T>> = ObjectEntry<T, k, v>[]
-export type abcObjectEnt<T, k extends keyof T, v extends ObjectVal<T>> = ObjectEnt<T, k, v>
+export type abcObjectEnt<T, k extends keyof T = keyof T, v extends ObjectVal<T> = ObjectVal<T, k>> = ObjectEnt<T, k, v>
 
 export type ReverseMap<T, V extends ObjectVal<T>> = keyof T extends infer k ? k extends keyof T ?
 	T[k] extends infer v ? V extends v ? k
