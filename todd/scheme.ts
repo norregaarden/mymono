@@ -1,38 +1,56 @@
-import { TODO, næ, obj, theunilog } from "./uti"
+import { TypedOmit, arr, num, næ, obj, objectKeys, str, theunilog } from "./uti"
 const log = theunilog
 
 /*
-SCHEME
+json-schema-like SCHEME
 */
 export type scheme =
-	| { type: "comment"; yo: string }
+	| { type: "literal"; yo: SNB }
+	| { type: "undefined" }
 	| { type: "boolean" }
 	| { type: "string" }
-	| { type: "number"; min?: number; max?: number }
-	| { type: "object"; properties: obj<string, scheme> }
-	| { type: "array"; of: scheme }
-// | { type: "union"; cases: scheme[] };
-type thatkindof<s extends scheme, k extends scheme['type']> = k extends k ? s & { type: k } : never
+	| { type: "number"; min?: num; max?: num }
+	| { type: "object"; properties: obj<str, scheme> }
+	| { type: "union"; cases: arr<scheme> }
+	| { type: "array"; ofcases: arr<scheme> };
+// type thatkindof<s extends scheme, k extends scheme['type']> = s extends { type: k } ? s : never
+type thatkindof<s extends scheme, k extends scheme['type']> = s extends { type: k } & scheme ? s : never;
+// type theSNBkindof<s extends scheme> = thatkindof<s, SNBstring>
+
 
 
 /*
-GENERATOR
+todd the scheme GENERATOR
 */
+type GeneratorDictionary = {
+	[k in scheme['type']]:
+	k extends SNBstring | 'undefined' ? ((an?: TypedOmit<thatkindof<scheme, k>, 'type'>) => thatkindof<scheme, k>) :
+	// k extends 'object' | 'array' | 'union' | 'literal' ?
+	k extends 'object' | 'array' | 'union' | 'literal' ?
+	<More extends TypedOmit<thatkindof<scheme, k>, "type">[keyof TypedOmit<thatkindof<scheme, k>, "type">]>(
+		more: More) => thatkindof<scheme, k> & Record<keyof TypedOmit<thatkindof<scheme, k>, "type">, More> :
+	// k extends 'object' ? <Ss extends scheme[], P extends obj<str, Ss[number]>, O extends UnpackSchema<{ type: 'object', properties: P }>>(p: P) => O :
+	// ((an: TypedOmit<thatkindof<scheme, k>, 'type'>) => thatkindof<scheme, k>)
+	never
+}
 export const todd = {
-	comment: <C extends string>(yo: C) =>
-		({ type: "comment", yo }),
-	boolean: () => ({ type: "boolean" }),
-	string: () => ({ type: "string" }),
-	number: () => ({ type: "number" }),
-	object: <p extends (thatkindof<scheme, 'object'>)["properties"]>(properties: p) =>
+	literal: <C extends SNB>(yo: C) =>
+		({ type: "literal", yo }),
+	undefined: (args?) =>
+		({ type: "undefined", ...args }),
+	boolean: (args?) =>
+		({ type: "boolean", ...args }),
+	string: (args?) =>
+		({ type: "string", ...args }),
+	number: (args?) =>
+		({ type: "number", ...args }),
+	union: <cases extends arr<scheme>>(cases: cases) =>
+		({ type: "union", cases }),
+	array: <of extends arr<scheme>>(ofcases: of) =>
+		({ type: "array", ofcases }),
+	object: <p extends obj<str, scheme>>(properties: p) =>
 		({ type: "object", properties }),
-	array: <of>(of: of) => ({ type: "array", of }),
-	// union: <cases extends scheme[]>(...cases: cases) =>
-	// 	({ type: "union", cases, }),
-} satisfies {
-		[k in scheme['type']]:
-		(an: any) => thatkindof<scheme, k>
-	}
+} satisfies GeneratorDictionary;
 
 export type objectscheme = thatkindof<scheme, 'object'>;
 export const chavez = {
@@ -47,12 +65,12 @@ export const chavez = {
 		}), { type: "object", properties: {} }),
 }
 
-const exampleGenned = todd.object({
-	nam: todd.number(), ssh: todd.string(),
-	// uuh: todd.union(todd.array(todd.boolean()), todd.comment('shit'))
-})
-
-
+const g = todd
+const exampleGenned = g.object({
+	nam: g.number(), ssh: g.string(),
+	uuh: g.array([g.boolean(), g.literal('shit')]),
+	aha: g.array([g.number(), g.object({ lol: g.literal(42) })])
+});
 
 
 /*
@@ -64,24 +82,66 @@ export type TypeStringMap = {
 	boolean: boolean;
 };
 export type SNBstring = 'string' | 'number' | 'boolean'
-export type SNB = TypeStringMap[SNBstring]
+export type SNB<which extends SNBstring = SNBstring> = TypeStringMap[which]
+// type anySNB = SNB
 
-type UnpackComment<S extends scheme> = S extends thatkindof<S, 'comment'>
-	? `//comment/${S['yo']}/` : "nevercomment"
+type UnpackLiteral<S extends scheme> = S extends thatkindof<S, 'literal'>
+	? S['yo'] : "nevercomment"
+
+type JustUnpackLiteral<S extends thatkindof<scheme, 'literal'>> = S['yo']
+
 type UnpackSNB<S extends scheme> = S extends thatkindof<S, SNBstring>
 	? TypeStringMap[S["type"]]
 	: "neverSNB";
+
+// type JustUnpackSNB<S extends thatkindof<scheme, SNBstring>> = S['type'] extends SNBstring ? SNB<S['type']> : never
+
 type UnpackObject<S extends scheme> = S extends thatkindof<S, 'object'>
 	? { [k in keyof S['properties']]: UnpackSchema<S['properties'][k]> }
 	: "neverobject";
+
+type JustUnpackObject<S extends thatkindof<scheme, 'object'>> =
+	{ [k in keyof S['properties']]: JustUnpackSchema<S['properties'][k]> }
+
+type UnpackUnion<S extends scheme> = S extends thatkindof<S, 'union'>
+	? (S['cases'][number] extends infer T extends scheme ? UnpackSchema<T> : never)
+	: "neverunion";
+
+// type JustDistributeSchemes<schemeunion extends scheme> = schemeunion extends thatkindof<scheme, infer kind> ? justunpackschemamap<kind, schemeunion> : never;
+type JustUnpackUnion<S extends thatkindof<scheme, 'union'>> = S['cases'][number] extends infer s ? s extends scheme ? JustUnpackSchema<s> : never : never //extends S['cases'][number] ? JustUnpackSchema<S['cases'][number]> : never
+
 type UnpackArray<S extends scheme> = S extends thatkindof<S, 'array'>
-	? UnpackSchema<S['of']>[]
+	? arr<(S['ofcases'][number] extends infer T extends scheme ? UnpackSchema<T> : never)>
 	: "neverarray";
-// type UnpackUnion<S extends scheme> = S extends thatkindof<S, 'union'>
-// 	? S["cases"][number] extends infer C
-// 	? C extends scheme
-// 	? UnpackSchema<C>
-// 	: "neverunion1" : "neverunion2" : 'neverunion3'
+
+// type JustUnpackArray<S extends thatkindof<scheme, 'array'>> = arr<JustDistributeSchemes<S['ofcases'][number]>>
+type JustUnpackArray<S extends thatkindof<scheme, 'array'>> = arr<JustUnpackSchema<S['ofcases'][number]>>;
+
+// type OMGjust<S extends scheme> = S extends { type: keyof TheJustUnpackMap<S> } ? TheJustUnpackMap<S>[S['type']] : never;
+// type JustUnpackSchema<S extends scheme> = OMGjust<S>;
+export type JustUnpackSchema<S extends scheme> = UnpackSchema<S>
+
+type TheJustUnpackMap<S extends scheme> = {
+	array: JustUnpackArray<thatkindof<S, 'array'>>,
+	object: JustUnpackObject<thatkindof<S, 'object'>>,
+	union: JustUnpackUnion<thatkindof<S, 'union'>>,
+	literal: JustUnpackLiteral<thatkindof<S, 'literal'>>,
+	string: string,
+	number: number,
+	boolean: boolean
+};
+
+// type justunpackschemamap<T extends scheme['type'], S extends thatkindof<scheme, T>> =
+// 	T extends SNBstring ? JustUnpackSNB<theSNBkindof<S>> :
+// 	T extends 'literal' ? JustUnpackLiteral<S & thatkindof<scheme, 'literal'>> :
+// 	T extends 'array' ? JustUnpackArray<thatkindof<S, 'array'>> :
+// 	T extends 'union' ? JustUnpackUnion<thatkindof<S, 'union'>> :
+// 	T extends 'object' ? JustUnpackObject<thatkindof<S, 'object'>> :
+// 	// T extends 'number'? JustUnpackNumber<S & thatkindof<scheme, 'number'>>:
+// 	// T extends 'boolean'? JustUnpackBoolean<S & thatkindof<scheme, 'boolean'>>:
+// 	never;
+// type JustUnpackSchema<S extends scheme> = justunpackschemamap<S['type'], thatkindof<S, S['type']>>;
+
 
 type tryelse<a, b> =
 	a extends `never${infer _suffix}` ? b : a
@@ -92,31 +152,45 @@ type tryelsepipe<ts extends næ[]> =
 	: never
 
 // type UnpackSchema<S extends scheme>
-// 	= UnpackUnion<S>
+// 	// = UnpackUnion<S>
+// 	// | UnpackArray<S>
+// 	= UnpackUnionArray<S>
 // 	| UnpackObject<S>
-// 	| UnpackArray<S>
 // 	| UnpackSNB<S>
+// 	| UnpackLiteral<S>
+// type UnpackSchema<S extends scheme> = tryelsepipe<
+// 	[UnpackLiteral<S>
+// 		//, UnpackUnion<S>
+// 		, UnpackObject<S>
+// 		, UnpackArray<S>
+// 		, UnpackSNB<S>
+// 	]>
 type UnpackSchema<S extends scheme> = tryelsepipe<
-	[UnpackComment<S>
-		//, UnpackUnion<S>
-		, UnpackObject<S>
-		, UnpackArray<S>
+	[UnpackLiteral<S>
 		, UnpackSNB<S>
+		, UnpackUnion<S>
+		, UnpackArray<S>
+		, UnpackObject<S>
 	]>
 
+
 type ExampleUnpacked = UnpackSchema<typeof exampleGenned>
-const exampleChecked: ExampleUnpacked =
-{
+const exampleChecked: ExampleUnpacked = {
 	nam: 42, ssh: 'lol',
-	// uuh: [true] 
-}
-log(exampleChecked)
-const alsoexampleChecked: ExampleUnpacked =
-{
+	uuh: [true,],
+	aha: [41,]
+};
+log('exampleChecked', exampleChecked);
+const alsoexampleChecked = {
 	nam: NaN, ssh: null as any,
-	// uuh: '//comment/shit/' 
-}
-log(alsoexampleChecked)
+	uuh: ['shit', false],
+	aha: [{ lol: 43 as any }]
+} satisfies ExampleUnpacked;
+log('alsoexampleChecked', alsoexampleChecked);
+// const yay = 
+
+
+
 
 
 
@@ -125,42 +199,37 @@ log(alsoexampleChecked)
 /*
 RESULT
 */
-type Tree<type> = {
-	yoIam: type,
-	note?: string,
-	children: (Tree<type> | type)[]
-}
-type OKresult<type> = { ok: type }
-type Result<oktype = næ, treeerr = string> =
-	| ({ result: "ok"; } & OKresult<oktype>)
-	| ({ result: "err"; } & ({ msg: string } | Tree<treeerr>))
-const resultok = <ok>(ok: ok) => ({ result: "ok" as const, ok });
-const resultmsgerror = <msg = string>(msg: msg) =>
-	({ result: "err" as const, msg, });
-const resulttreeerror = <err>(treeerr: Tree<err>) =>
-	({ ...treeerr, result: 'err' as const })
+type Result<oktype = næ, errmsg = string> =
+	| ({ result: "ok"; ok: oktype })
+	| ({ result: "err"; msg: errmsg })
+const resultok = <ok>(ok: ok) =>
+	({ result: "ok" as const, ok }) satisfies Result<ok, any>;
+const resultmsgerror = <oktype, msg = string>(msg: msg): Result<oktype, msg> =>
+	({ result: "err" as const, msg, }) satisfies Result<any, msg>;
 
 
 
 /*
 PARSER
 */
-type parser = <i, o>(i: i) => o
-type schemaparser<s> = (s: s) => parser
+// type parser = <i, o>(i: i) => o
+// type schemaparser<s> = (s: s) => parser
 
 type Parser<In, Out> =
 	(input: In) => Result<Out>
 type SchemaParser<in S extends scheme = scheme, In = næ, O = UnpackSchema<S>> =
 	<sss extends S>(scheme: sss) => Parser<In, O>
+type ThatKindOfSchemaParser<kind extends scheme['type'], In = næ, O = UnpackSchema<thatkindof<scheme, kind>>> =
+	<sss extends thatkindof<scheme, kind>>(scheme: sss) => Parser<In, O>
 
 
 
 const conditionalResult =
 	<ok>(cond: ((næ: næ) => boolean), msg?: string) =>
 		(input: næ) => cond(input) ? resultok(input as ok)
-			: resultmsgerror(msg ?? 'plsputerrmsg')
-const parseSNB = <K extends SNBstring>(whatnow: K): () => Parser<næ, TypeStringMap[K]> => () =>
-	conditionalResult((inp => typeof inp == whatnow),
+			: resultmsgerror<ok>(msg ?? 'plsputerrmsg')
+const parseSNB = <K extends SNBstring>(whatnow: K): (() => Parser<næ, TypeStringMap[K]>) => () =>
+	conditionalResult<TypeStringMap[K]>((inp => typeof inp == whatnow),
 		`{parseSNBerror:${whatnow}}`)
 
 const parseString = parseSNB("string") satisfies SchemaParser<scheme, næ, string>; //<S>(s: S) => (no: næ) => Result<string>;
@@ -217,6 +286,11 @@ const anyOfParser =
 		(input) => (parsers.find(p => p(input).result == 'ok')
 			?? (alwaysfail('') as any)).apply(input)
 
+const allOfParser =
+	<Input, P extends Parser<Input, næ>[], InputParsers extends [number, P[number]][]>(
+		...indexparsers: InputParsers): Parser<Input[], (P[number] extends Parser<Input, infer Out> ? Out : never)> =>
+		(input: Input[]) => (indexparsers.every(([i, p], _i) => p(input[i]).result == 'ok')
+			? resultok<ReturnType<typeof indexparsers[number][1]>> : alwaysfail('') as any).apply(input)
 // needs all Parsers to have same Input
 // but its fine cause Input = string | næ
 // const allOfParser =
@@ -249,9 +323,12 @@ const parseObject: SchemaParser<thatkindof<scheme, 'object'>, næ> = (s) => (inp
 	// const keys = objectKeys(s.properties)
 	const parsedEntries = []
 	for (const key in s.properties) {
-		if (!(key in input)) return resultmsgerror('parseObject: key not found ' + key)
+		if (!(Object.keys(input).includes(key))) return resultmsgerror(
+			'parseObject: key not found ' + key +
+			' ssh: ' + JSON.stringify(input)
+		)
 		const ischeme = s.properties[key]
-		const iparser = switchschematype(ischeme)
+		const iparser = (switchschematype as any)(ischeme)
 		const ival = (input as any)[key]
 		const tryParseKeyVal = iparser(ival)
 		if (tryParseKeyVal.result == 'err') return tryParseKeyVal
@@ -262,22 +339,39 @@ const parseObject: SchemaParser<thatkindof<scheme, 'object'>, næ> = (s) => (inp
 	return resultok(parsedResult as any)
 };
 
-const parseArray = null as næ as SchemaParser<thatkindof<scheme, 'array'>>;
+const parseLiteral = <S extends thatkindof<scheme, 'literal'>>(s: S): Parser<næ, JustUnpackLiteral<S>> => conditionalResult(input => input == s.yo) as any
+
+// const parseArray = null as næ as SchemaParser<thatkindof<scheme, 'array'>>;
 // const parseUnion = null as næ as SchemaParser<thatkindof<scheme, 'union'>>;
+const parseArray = <S extends thatkindof<scheme, 'array'>>(s: S): Parser<næ, JustUnpackArray<S>> => (input) => {
+	if (!Array.isArray(input)) return resultmsgerror('input not array')
+	if (allOfParser(...input.map(() => anyOfParser(...(s as any).ofcases)))(input)) return resultok<JustUnpackArray<S>>(input)
+	return resultmsgerror('array') as any
+} //satisfies ThatKindOfSchemaParser<'array', næ, JustUnpackArray<thatkindof<scheme, 'array'>>>;
+const parseUnion = <S extends thatkindof<scheme, 'union'>>(s: S): Parser<næ, JustUnpackUnion<S>> => //(input) => {
+	anyOfParser(...(s as any).cases.map(switchschematype))
+//satisfies SchemaParser<thatkindof<scheme, 'union'>, næ, JustUnpackSchema<thatkindof<scheme, 'union'>>>
+// return resultmsgerror('union')
+// }
 
+const parseUndefined = () => conditionalResult(i => i == null)
 
-const switchschematype = <S extends scheme>(s: S) => {
+export const neverever = (no: never): any => no
+
+const switchschematype = <k extends scheme['type'], S extends thatkindof<scheme, k>>(s: scheme): Parser<næ, JustUnpackSchema<S>> => {
 	switch (s.type) {
-		case "string": return parseString()
-		case "number": return parseNumber()
-		case "boolean": return parseBoolean()
-		case "object": return parseObject(s)
-		// case "comment":return parseComment
-		case "array": return parseArray(s)
-		// case "union": return parseUnion(s)
-		default: return alwaysfail(`${s.type} not implemented`)
+		case "string": return parseString() as any
+		case "number": return parseNumber() as any
+		case "boolean": return parseBoolean() as any
+		case "object": return parseObject(s) as any
+		case "literal": return parseLiteral(s) as any
+		case 'undefined': return parseUndefined() as any
+		case "union": return (parseUnion as any)(s) as any
+		case "array": return (parseArray as any)(s) as any
+		// default: return alwaysfail(`${s.type} not implemented`) as any
+		default: return neverever(s)
 	}
-}
+}// satisfies Parser<næ, JustUnpackSchema<S>>;
 // schemespecific_switchcaseparsers(s)
 // 	(
 // 		["boolean", parseBoolean]
@@ -292,9 +386,15 @@ const switchschematype = <S extends scheme>(s: S) => {
 	
 */
 
-const parser = <S extends scheme>(schema: S,) => ({
-	parse: switchschematype(schema),
+const schemeparser = <S extends scheme>(schema: S,) => ({
+	parse: (switchschematype as any)(schema) as Parser<næ, JustUnpackSchema<S>>,
 });
 
-const yatzy = parser(exampleGenned).parse({});
-console.log(yatzy);
+const yatzy = schemeparser(exampleGenned).parse({});
+console.log('yatzy', yatzy);
+
+// const metethpropbut = todd.array
+const meeatpurpleberries = schemeparser(exampleGenned).parse({});
+console.log('meeatpurpleberries', meeatpurpleberries);
+
+export { yatzy, meeatpurpleberries }

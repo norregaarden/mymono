@@ -13,8 +13,8 @@ export type nah = null | undefined
 export type str = string
 export type _str = bigint | num | str | boo | nah
 export type _key = symbol | num | str
-export type obj<key extends _key, val> = Record<key, val>
-export type arr<t = næ> = t[]
+export type obj<key extends _key = _key, val = næ> = Record<key, val>|Readonly<Record<key, val>>
+export type arr<t = næ> = Array<t> | ReadonlyArray<t>
 
 
 /*

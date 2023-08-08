@@ -1,6 +1,9 @@
 lockfileVersion: '6.0'
 
 dependencies:
+  dotenv:
+    specifier: ^16.3.1
+    version: 16.3.1
   solid-js:
     specifier: ^1.7.3
     version: 1.7.3
@@ -14,6 +17,11 @@ packages:
 
   /csstype@3.1.2:
     resolution: {integrity: sha512-I7K1Uu0MBPzaFKg4nI5Q7Vs2t+3gWWW648spaF+Rg7pI9ds18Ugn+lvg4SHczUdKlHI5LWBXyqfS8+DufyBsgQ==}
+    dev: false
+
+  /dotenv@16.3.1:
+    resolution: {integrity: sha512-IPzF4w4/Rd94bA9imS68tZBaYyBWSCE47V1RGuMrB94iyTOIEwRmVL2x/4An+6mETpLrKJ5hQkB8W4kFAadeIQ==}
+    engines: {node: '>=12'}
     dev: false
 
   /prettier@3.0.1:
